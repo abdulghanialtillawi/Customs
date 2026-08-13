@@ -1,120 +1,123 @@
 
-(() => {
-  "use strict";
+const C=window.BOOK_CONFIG;
+const q=document.getElementById("q"), clear=document.getElementById("clear");
+const status=document.getElementById("status"), root=document.getElementById("root");
+const results=document.getElementById("results"), mode=document.getElementById("mode");
+const pageCache=new Map(), indexCache=new Map();
+let current=1, searchTimer=null;
 
-  const data = Array.isArray(window.BOOK_DATA) ? window.BOOK_DATA : [];
-  const search = document.getElementById("search");
-  const clear = document.getElementById("clear");
-  const prev = document.getElementById("prev");
-  const next = document.getElementById("next");
-  const status = document.getElementById("status");
-  const resultsBox = document.getElementById("results");
-  const empty = document.getElementById("empty");
+function norm(s){return String(s||"").toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,"").replace(/[أإآٱ]/g,"ا").replace(/ى/g,"ي").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/\s+/g," ").trim()}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function shard(w){return (w?w.charCodeAt(0):0)%C.searchShards}
 
-  let matches = [];
-  let current = -1;
-
-  function normalize(s) {
-    return String(s || "")
-      .toLocaleLowerCase("ar")
-      .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
-      .replace(/[أإآٱ]/g, "ا")
-      .replace(/ى/g, "ي")
-      .replace(/ؤ/g, "و")
-      .replace(/ئ/g, "ي")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
-  function escapeHTML(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    }[c]));
-  }
-
-  function highlight(text, query) {
-    const safe = escapeHTML(text);
-    const q = normalize(query);
-    if (!q) return safe;
-
-    // Highlight using the original text while keeping the PDF wording untouched.
-    const parts = q.split(" ").filter(Boolean);
-    let out = safe;
-    for (const part of parts) {
-      const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      if (escaped) out = out.replace(new RegExp(escaped, "gi"), m => `<mark>${m}</mark>`);
-    }
-    return out;
-  }
-
-  function render(list, query) {
-    resultsBox.innerHTML = list.map(p => `
-      <article class="page" id="page-${p.page}" data-page="${p.page}">
-        <div class="page-head">
-          <span>صفحة ${p.page}</span>
-        </div>
-        <div class="page-body">${highlight(p.text, query)}</div>
-      </article>
-    `).join("");
-
-    empty.hidden = list.length !== 0;
-  }
-
-  function runSearch() {
-    const raw = search.value;
-    const q = normalize(raw);
-
-    if (!q) {
-      matches = data.map((_, i) => i);
-      current = -1;
-      render(data, "");
-      status.textContent = `الكتاب: ${data.length} صفحة`;
-    } else {
-      matches = [];
-      data.forEach((p, i) => {
-        if (normalize(p.text).includes(q)) matches.push(i);
-      });
-      current = matches.length ? 0 : -1;
-      render(matches.map(i => data[i]), raw);
-      status.textContent = `نتائج البحث: ${matches.length} صفحة من ${data.length}`;
-      if (matches.length) focusCurrent(false);
-    }
-
-    prev.disabled = matches.length === 0;
-    next.disabled = matches.length === 0;
-  }
-
-  function focusCurrent(smooth = true) {
-    if (current < 0 || !matches.length) return;
-    const page = data[matches[current]].page;
-    const el = document.getElementById(`page-${page}`);
-    if (el) {
-      el.classList.add("match");
-      el.scrollIntoView({behavior: smooth ? "smooth" : "auto", block:"start"});
-    }
-  }
-
-  function move(step) {
-    if (!matches.length) return;
-    current = (current + step + matches.length) % matches.length;
-    focusCurrent(true);
-    status.textContent = `النتيجة ${current + 1} من ${matches.length}`;
-  }
-
-  search.addEventListener("input", runSearch);
-  clear.addEventListener("click", () => {
-    search.value = "";
-    runSearch();
-    search.focus();
+function loadScript(file,varName){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src=file+"?v=1";
+    s.onload=()=>resolve(window[varName]);
+    s.onerror=reject;
+    document.body.appendChild(s);
   });
-  prev.addEventListener("click", () => move(-1));
-  next.addEventListener("click", () => move(1));
+}
 
-  if (!data.length) {
-    status.textContent = "تعذر تحميل نص الكتاب. تأكد أن book-data.js موجود بجانب index.html.";
-    empty.hidden = false;
-    empty.textContent = "تعذر تحميل نص الكتاب. يجب رفع الملفات الثلاثة معًا.";
-  } else {
-    runSearch();
+async function getPageChunk(ch){
+  if(pageCache.has(ch)) return pageCache.get(ch);
+  const data=await loadScript(C.chunks[ch].file,"PAGE_CHUNK");
+  pageCache.set(ch,data);
+  window.PAGE_CHUNK=null;
+  return data;
+}
+async function getIndexShard(sh){
+  if(indexCache.has(sh)) return indexCache.get(sh);
+  const idx=await loadScript(`search-${String(sh).padStart(2,"0")}.js`,"SEARCH_INDEX");
+  indexCache.set(sh,idx);
+  window.SEARCH_INDEX=null;
+  return idx;
+}
+
+async function loadPage(n){
+  n=Math.max(1,Math.min(C.pages,n));
+  const ch=Math.floor((n-1)/C.chunkSize);
+  status.textContent=`جاري تحميل الصفحة ${n}…`;
+  const arr=await getPageChunk(ch);
+  const p=arr.find(x=>x.page===n);
+  if(!p)return;
+  current=n;
+  root.innerHTML=`<section class="reader"><div class="pagebar"><span>صفحة ${p.page} من ${C.pages}</span></div><div class="pagebody">${esc(p.text)}</div></section>
+  <div class="nav"><button id="prev">السابق</button><div class="page-number">صفحة ${p.page}</div><button id="next">التالي</button></div>`;
+  document.getElementById("prev").disabled=n===1;
+  document.getElementById("next").disabled=n===C.pages;
+  document.getElementById("prev").onclick=()=>loadPage(n-1);
+  document.getElementById("next").onclick=()=>loadPage(n+1);
+  status.textContent=`صفحة ${n} من ${C.pages}`;
+}
+
+async function searchBook(){
+  const raw=q.value.trim(), query=norm(raw);
+  if(!query){
+    results.innerHTML="";
+    await loadPage(current);
+    return;
   }
-})();
+
+  status.textContent="جاري البحث…";
+  const words=[...new Set(query.split(/\s+/).filter(x=>x.length>1))];
+  const sets=[];
+  for(const w of words){
+    const idx=await getIndexShard(shard(w));
+    sets.push(new Set(idx[w]||[]));
+  }
+
+  let ids=sets[0]?[...sets[0]]:[];
+  for(const s of sets.slice(1))ids=ids.filter(x=>s.has(x));
+
+  const byChunk={};
+  ids.forEach(id=>{
+    const c=Math.floor((id-1)/C.chunkSize);
+    (byChunk[c]??=[]).push(id);
+  });
+
+  const found=[];
+  for(const [c,list] of Object.entries(byChunk)){
+    const data=await getPageChunk(+c);
+    const map=new Map(data.map(x=>[x.page,x.text]));
+    for(const id of list){
+      const text=map.get(id)||"";
+      if(norm(text).includes(query))found.push({page:id,text});
+    }
+  }
+
+  found.sort((a,b)=>a.page-b.page);
+
+  if(!found.length){
+    results.innerHTML=`<div class="empty">لا توجد نتائج مطابقة.</div>`;
+    status.textContent="لا توجد نتائج مطابقة";
+    return;
+  }
+
+  results.innerHTML=`<table class="result-table"><thead><tr><th>الصفحة</th><th>مقتطف</th><th></th></tr></thead><tbody>
+  ${found.slice(0,200).map(x=>{
+    const snippet=x.text.replace(/\s+/g," ").slice(0,240);
+    return `<tr><td>${x.page}</td><td>${esc(snippet)}</td><td><button data-page="${x.page}">فتح</button></td></tr>`;
+  }).join("")}
+  </tbody></table>`;
+
+  results.querySelectorAll("button[data-page]").forEach(b=>{
+    b.onclick=()=>{results.innerHTML="";loadPage(+b.dataset.page)}
+  });
+  status.textContent=`وجدت ${found.length} صفحة مطابقة${found.length>200?" (عرض أول 200)":""}`;
+}
+
+q.addEventListener("input",()=>{
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(searchBook,180);
+});
+clear.onclick=()=>{
+  q.value="";
+  results.innerHTML="";
+  loadPage(current);
+  q.focus();
+};
+mode.onchange=()=>document.body.classList.toggle("compact",mode.value==="compact");
+
+loadPage(1);

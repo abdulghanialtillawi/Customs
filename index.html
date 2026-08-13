@@ -2,28 +2,24 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>الكتاب — قراءة وبحث</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="toolbar">
-    <input id="search" type="search" inputmode="search"
-      placeholder="ابحث بكلمة أو عبارة..." autocomplete="off" enterkeyhint="search">
-    <button id="clear" type="button">مسح</button>
-    <button id="prev" type="button" aria-label="النتيجة السابقة">‹</button>
-    <button id="next" type="button" aria-label="النتيجة التالية">›</button>
-  </div>
-  <div id="status">جاري تحميل الكتاب…</div>
+<header>
+<div class="toolbar">
+<input id="q" type="search" placeholder="ابحث بكلمة أو عبارة..." autocomplete="off">
+<button id="clear" type="button">مسح</button>
+<select id="mode"><option value="normal">قراءة مريحة</option><option value="compact">مضغوط</option></select>
+</div>
+<div id="status">جاري تحميل الصفحة الأولى…</div>
 </header>
-
 <main>
-  <div id="results"></div>
-  <div id="empty" class="empty" hidden>لا توجد صفحات مطابقة للبحث.</div>
+<div id="root"></div>
+<div id="results" class="results"></div>
 </main>
-
-<script src="book-data.js"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
