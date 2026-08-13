@@ -1,1 +1,1 @@
-window.SEARCH_INDEX={};
+window.SEARCH={};

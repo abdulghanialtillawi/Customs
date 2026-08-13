@@ -3,22 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>الكتاب — قراءة وبحث</title>
+<title>الكتاب — نسخة منظمة</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
+<header class="top">
 <div class="toolbar">
-<input id="q" type="search" placeholder="ابحث بكلمة أو عبارة..." autocomplete="off">
-<button id="clear" type="button">مسح</button>
+<input id="q" type="search" placeholder="ابحث بكلمة أو عبارة من الكتاب..." autocomplete="off">
+<button id="clear">مسح</button>
 <select id="mode"><option value="normal">قراءة مريحة</option><option value="compact">مضغوط</option></select>
 </div>
-<div id="status">جاري تحميل الصفحة الأولى…</div>
+<div id="status">جاري التحميل…</div>
 </header>
-<main>
-<div id="root"></div>
-<div id="results" class="results"></div>
-</main>
+<main><div id="root"></div><div id="results" class="results"></div></main>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
