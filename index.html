@@ -2,24 +2,27 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>الكتاب — قراءة وبحث</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
+<header class="topbar">
   <div class="toolbar">
-    <input id="search" type="search" placeholder="ابحث بكلمة أو عبارة داخل الكتاب..." autocomplete="off">
+    <input id="search" type="search" inputmode="search"
+      placeholder="ابحث بكلمة أو عبارة..." autocomplete="off" enterkeyhint="search">
     <button id="clear" type="button">مسح</button>
-    <select id="mode" aria-label="نمط القراءة">
-      <option value="normal">قراءة مريحة</option>
-      <option value="compact">عرض مضغوط</option>
-    </select>
+    <button id="prev" type="button" aria-label="النتيجة السابقة">‹</button>
+    <button id="next" type="button" aria-label="النتيجة التالية">›</button>
   </div>
-  <div id="status"></div>
+  <div id="status">جاري تحميل الكتاب…</div>
 </header>
-<main id="pages"></main>
-<div id="noResults" class="no-results">لا توجد صفحات مطابقة للبحث.</div>
+
+<main>
+  <div id="results"></div>
+  <div id="empty" class="empty" hidden>لا توجد صفحات مطابقة للبحث.</div>
+</main>
+
 <script src="book-data.js"></script>
 <script src="app.js"></script>
 </body>
